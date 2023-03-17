@@ -1,0 +1,31 @@
+server:
+  port: 10200
+
+spring:
+  application:
+    name: @artifactId@
+  profiles:
+    active: '@env@'
+  cloud:
+    nacos:
+      discovery:
+        server-addr: '@nacos-server-addr@'
+        namespace: '@nacos-namespace@'
+        group: '@nacos-group@'
+        metadata:
+          version: @version@
+      config:
+        server-addr: '@nacos-server-addr@'
+        namespace: '@nacos-namespace@'
+        group: '@nacos-group@'
+        file-extension: yml
+        shared-configs:
+          - data-id: shine-nacos.yml
+            group: '@nacos-group@'
+          - data-id: shine-mysql.yml
+            group: '@nacos-group@'
+
+logging:
+  level:
+    io.github.SilenceShine.shine: debug
+    com.alibaba.cloud.nacos.client.NacosPropertySourceBuilder: debug
