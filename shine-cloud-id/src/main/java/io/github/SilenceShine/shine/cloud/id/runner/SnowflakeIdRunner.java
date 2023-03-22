@@ -1,6 +1,7 @@
 package io.github.SilenceShine.shine.cloud.id.runner;
 
-import cn.hutool.core.util.IdUtil;
+import io.github.SilenceShine.shine.cloud.id.util.SnowflakeIdUtil;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -13,11 +14,12 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@AllArgsConstructor
 public class SnowflakeIdRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        IdUtil.getSnowflake(1, 1);
+        SnowflakeIdUtil.init(1, 1);
     }
 
 }
