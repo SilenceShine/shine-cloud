@@ -24,6 +24,8 @@ spring:
             group: '@nacos-group@'
           - data-id: shine-redis.yml
             group: '@nacos-group@'
+          #          - data-id: shine-redisson.yml
+          #            group: '@nacos-group@'
           - data-id: shine-mysql.yml
             group: '@nacos-group@'
 

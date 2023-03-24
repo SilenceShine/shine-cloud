@@ -28,8 +28,9 @@
         <native-maven-plugin.version>0.9.18</native-maven-plugin.version>
         <dockerfile-maven-plugin.version>1.4.13</dockerfile-maven-plugin.version>
 
-        <!--    util    -->
         <shine-framework.version>0.3.2-SNAPSHOT</shine-framework.version>
+        <r2dbc-mysql.version>0.9.0</r2dbc-mysql.version>
+        <redisson-spring-boot-starter.version>3.20.0</redisson-spring-boot-starter.version>
         <lombok.version>1.18.26</lombok.version>
     </properties>
 
