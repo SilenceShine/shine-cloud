@@ -11,14 +11,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
 /**
- * 初始化雪花算法的 workerId, datacenterId
- *
- * @author SilenceShine
- * @since 1.0
+ * @author Administrator
  */
 @Slf4j
 @Component
@@ -27,13 +27,10 @@ public class SnowflakeIdRunner implements CommandLineRunner {
     private static final int ID_MAX = 31;
     private static final String WORK_ID_LOCK_NAME = "work-id";
     private static final String DATA_CENTER_ID_LOCK_NAME = "data-center-id";
-    private static final long WAIT_TIME = 1L;
-    private static final long LEASE_TIME = 60;
-    private static final TimeUnit UNIT = TimeUnit.SECONDS;
+    private final Lock lock = new ReentrantLock();
+    private final Condition condition = lock.newCondition();
     private Integer workId;
     private Integer dataCenterId;
-    private final Object object = new Object();
-    private final Object runnerObject = new Object();
 
     @Value("${spring.application.name}")
     private String name;
@@ -44,62 +41,55 @@ public class SnowflakeIdRunner implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         new Thread(() -> {
-            synchronized (object) {
-                RLock workIdLock = getLock(WORK_ID_LOCK_NAME, id -> workId = id);
-                RLock dataCenterIdLock = getLock(DATA_CENTER_ID_LOCK_NAME, id -> dataCenterId = id);
-                LogUtil.error(SnowflakeIdRunner.class, "获取id成功:{},{}", workId, dataCenterId);
-                try {
-                    synchronized (runnerObject) {
-                        runnerObject.notify();
-                    }
-                    object.wait();
-                } catch (InterruptedException e) {
-                    LogUtil.error(SnowflakeIdRunner.class, "线程等待异常:{}", e.getMessage());
-                    System.exit(-1);
-                }
-                LogUtil.info(SnowflakeIdRunner.class, "释放雪花算法 workId:{},dataCenterId:{}", workId, dataCenterId);
-                workIdLock.unlock();
-                dataCenterIdLock.unlock();
-            }
+            RLock workIdLock = getLock(WORK_ID_LOCK_NAME, id -> workId = id);
+            RLock dataCenterIdLock = getLock(DATA_CENTER_ID_LOCK_NAME, id -> dataCenterId = id);
+            LogUtil.info(SnowflakeIdRunner.class, "获取id成功:{},{}", workId, dataCenterId);
+            lockNotice(true);
+            LogUtil.info(SnowflakeIdRunner.class, "释放雪花算法 workId:{},dataCenterId:{}", workId, dataCenterId);
+            workIdLock.unlock();
+            dataCenterIdLock.unlock();
+            lockNotice(true);
         }).start();
-        synchronized (runnerObject) {
-            runnerObject.wait();
-        }
+        lockNotice(false);
         SnowflakeIdUtil.init(workId, dataCenterId);
         LogUtil.info(this, "雪花算法初始化完成 workId:{},dataCenterId:{}", workId, dataCenterId);
     }
 
     @PreDestroy
     public void preDestroy() {
-        synchronized (object) {
-            object.notify();
-        }
+        // 通知redisson释放分布式锁
+        lockNotice(true);
     }
 
-    private RLock getLock(String lockName, Consumer<Integer> consumer) {
-        for (int id = 0; id < ID_MAX; id++) {
-            RLock rLock = getLock(name + ":" + lockName + ":" + id);
-            if (null != rLock) {
-                consumer.accept(id);
-                return rLock;
-            }
-        }
-        LogUtil.error(SnowflakeIdRunner.class, "get id error, {}个所有id已经占完!", ID_MAX);
-        System.exit(-1);
-        return null;
-    }
-
-    private RLock getLock(String lockName) {
-        RLock rLock = redissonClient.getLock(lockName);
+    /**
+     * 通知方法
+     */
+    private void lockNotice(boolean signal) {
+        lock.lock();
         try {
-            if (rLock.tryLock(WAIT_TIME, 10L * LEASE_TIME, UNIT)) {
-                return rLock;
+            if (signal) {
+                condition.signal();
             }
+            condition.await();
         } catch (InterruptedException e) {
-            rLock.unlock();
+            LogUtil.info(this, "雪花算法初始化失败:{}", e.getMessage());
             throw new RuntimeException(e);
+        } finally {
+            lock.unlock();
         }
-        return null;
+    }
+
+    /**
+     * 获取分布式锁
+     */
+    private RLock getLock(String lockName, Consumer<Integer> consumer) {
+        return IntStream.range(0, ID_MAX)
+                .boxed()
+                .peek(consumer)
+                .map(id -> redissonClient.getLock(name + ":" + lockName + ":" + id))
+                .filter(Lock::tryLock)
+                .findAny()
+                .orElseThrow(() -> new RuntimeException("get id error, " + ID_MAX + " 个所有id已经占完!"));
     }
 
 }
