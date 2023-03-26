@@ -7,8 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.locks.Condition;
@@ -21,19 +21,18 @@ import java.util.stream.IntStream;
  * @author Administrator
  */
 @Slf4j
+@Order(2)
 @Component
 public class SnowflakeIdRunner implements CommandLineRunner {
 
     private static final int ID_MAX = 31;
+    private static final String REDISSON_KEY_PREFIX = "snowflake";
     private static final String WORK_ID_LOCK_NAME = "work-id";
     private static final String DATA_CENTER_ID_LOCK_NAME = "data-center-id";
     private final Lock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
     private Integer workId;
     private Integer dataCenterId;
-
-    @Value("${spring.application.name}")
-    private String name;
 
     @Autowired
     private RedissonClient redissonClient;
@@ -43,16 +42,16 @@ public class SnowflakeIdRunner implements CommandLineRunner {
         new Thread(() -> {
             RLock workIdLock = getLock(WORK_ID_LOCK_NAME, id -> workId = id);
             RLock dataCenterIdLock = getLock(DATA_CENTER_ID_LOCK_NAME, id -> dataCenterId = id);
-            LogUtil.info(SnowflakeIdRunner.class, "获取id成功:{},{}", workId, dataCenterId);
+            LogUtil.info(SnowflakeIdRunner.class, "Snowflake 获取id workId:{},dataCenterId:{}", workId, dataCenterId);
             lockNotice(true);
-            LogUtil.info(SnowflakeIdRunner.class, "释放雪花算法 workId:{},dataCenterId:{}", workId, dataCenterId);
+            LogUtil.info(SnowflakeIdRunner.class, "Snowflake 释放id workId:{},dataCenterId:{}", workId, dataCenterId);
             workIdLock.unlock();
             dataCenterIdLock.unlock();
             lockNotice(true);
         }).start();
         lockNotice(false);
         SnowflakeIdUtil.init(workId, dataCenterId);
-        LogUtil.info(this, "雪花算法初始化完成 workId:{},dataCenterId:{}", workId, dataCenterId);
+        LogUtil.info(this, "Snowflake 初始化完成 workId:{},dataCenterId:{}", workId, dataCenterId);
     }
 
     @PreDestroy
@@ -72,7 +71,7 @@ public class SnowflakeIdRunner implements CommandLineRunner {
             }
             condition.await();
         } catch (InterruptedException e) {
-            LogUtil.info(this, "雪花算法初始化失败:{}", e.getMessage());
+            LogUtil.info(this, "Snowflake 初始化失败:{}", e.getMessage());
             throw new RuntimeException(e);
         } finally {
             lock.unlock();
@@ -86,10 +85,10 @@ public class SnowflakeIdRunner implements CommandLineRunner {
         return IntStream.range(0, ID_MAX)
                 .boxed()
                 .peek(consumer)
-                .map(id -> redissonClient.getLock(name + ":" + lockName + ":" + id))
+                .map(id -> redissonClient.getLock(REDISSON_KEY_PREFIX + ":" + lockName + ":" + id))
                 .filter(Lock::tryLock)
                 .findAny()
-                .orElseThrow(() -> new RuntimeException("get id error, " + ID_MAX + " 个所有id已经占完!"));
+                .orElseThrow(() -> new RuntimeException("Snowflake get id error, " + ID_MAX + " 个所有id已经占完!"));
     }
 
 }

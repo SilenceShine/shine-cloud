@@ -1,5 +1,6 @@
 package io.github.SilenceShine.shine.cloud.id.router;
 
+import io.github.SilenceShine.shine.cloud.id.handler.BillNumberHandler;
 import io.github.SilenceShine.shine.cloud.id.handler.SnowflakeIdHandler;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,14 @@ public class Routers {
     @Bean
     public RouterFunction<ServerResponse> uid(SnowflakeIdHandler handler) {
         return nest(path("/snowflakeId"),
+                route(GET("/single"), handler::single)
+                        .andRoute(GET("batch"), handler::batch)
+        );
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> billNumber(BillNumberHandler handler) {
+        return nest(path("/billNumber"),
                 route(GET("/single"), handler::single)
                         .andRoute(GET("batch"), handler::batch)
         );
