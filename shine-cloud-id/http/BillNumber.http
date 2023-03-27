@@ -1,0 +1,35 @@
+### 增加单据号配置
+POST http://{{url}}/billNumber/save
+Content-Type: application/json
+
+{
+  "name": "B",
+  "code": "B",
+  "prefix": "B",
+  "length": 9,
+  "desc": "B"
+}
+
+### 修改单据号配置
+POST http://{{url}}/billNumber/update
+Content-Type: application/json
+
+{
+  "id": 1640269910699409408,
+  "name": "B",
+  "code": "B",
+  "prefix": "B",
+  "format": "yy",
+  "length": 9,
+  "status": true,
+  "desc": "BB"
+}
+
+### 获取单据号id
+GET http://{{url}}/billNumber/single?code=ID
+
+> {%
+    client.log(response.body);
+%}
+
+<> 2023-03-27T102905.200.json

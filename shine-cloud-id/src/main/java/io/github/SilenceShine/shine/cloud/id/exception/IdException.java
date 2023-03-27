@@ -13,6 +13,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum IdException implements ExceptionEnum {
 
+    BILL_NUMBER_CODE_EXIST(ResultStatus.BAD_REQUEST, "单据号code已存在!"),
     BILL_NUMBER_CODE_NOT_NULL(ResultStatus.BAD_REQUEST, "单据号code不能为空!"),
     BILL_NUMBER_CODE_NOT_EXIST(ResultStatus.BAD_REQUEST, "单据号code:%s 不存在!"),
     ;

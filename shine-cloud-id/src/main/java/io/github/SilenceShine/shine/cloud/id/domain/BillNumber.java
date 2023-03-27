@@ -11,6 +11,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 /**
  * 单据号
+ * prefix+format+length
  *
  * @author SilenceShine
  * @since 1.0
@@ -23,16 +24,25 @@ import org.springframework.data.relational.core.mapping.Table;
 @AllArgsConstructor
 public class BillNumber extends BaseDomain {
 
+    @Column("name")
+    private String name;
+
     @Column("code")
     private String code;
 
     @Column("prefix")
     private String prefix;
 
+    @Column("format")
+    private String format;
+
     @Column("length")
     private Integer length;
 
-    @Column("desc")
+    @Column("status")
+    private Boolean status;
+
+    @Column("`desc`")
     private String desc;
 
 }

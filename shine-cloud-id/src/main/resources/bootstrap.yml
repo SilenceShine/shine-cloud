@@ -29,7 +29,13 @@ spring:
           - data-id: shine-mysql.yml
             group: '@nacos-group@'
 
+shine.cloud.id:
+  snowflake:
+    work-id: 0
+    data-center-id: 0
+
 logging:
   level:
     io.github.SilenceShine.shine: debug
+    org.springframework.data.r2dbc: debug
     com.alibaba.cloud.nacos.client.NacosPropertySourceBuilder: debug

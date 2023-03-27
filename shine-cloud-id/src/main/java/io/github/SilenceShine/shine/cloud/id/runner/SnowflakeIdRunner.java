@@ -1,7 +1,9 @@
 package io.github.SilenceShine.shine.cloud.id.runner;
 
+import io.github.SilenceShine.shine.cloud.id.properties.GlobalProperties;
 import io.github.SilenceShine.shine.cloud.id.util.SnowflakeIdUtil;
 import io.github.SilenceShine.shine.util.log.LogUtil;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -33,23 +35,44 @@ public class SnowflakeIdRunner implements CommandLineRunner {
     private final Condition condition = lock.newCondition();
     private Integer workId;
     private Integer dataCenterId;
-
+    private Boolean notice = false;
+    @Autowired
+    private GlobalProperties properties;
     @Autowired
     private RedissonClient redissonClient;
 
+    @PostConstruct
+    public void init() {
+        workId = properties.getSnowflake().getWorkId();
+        dataCenterId = properties.getSnowflake().getDataCenterId();
+    }
+
     @Override
     public void run(String... args) throws Exception {
-        new Thread(() -> {
-            RLock workIdLock = getLock(WORK_ID_LOCK_NAME, id -> workId = id);
-            RLock dataCenterIdLock = getLock(DATA_CENTER_ID_LOCK_NAME, id -> dataCenterId = id);
-            LogUtil.info(SnowflakeIdRunner.class, "Snowflake 获取id workId:{},dataCenterId:{}", workId, dataCenterId);
-            lockNotice(true);
-            LogUtil.info(SnowflakeIdRunner.class, "Snowflake 释放id workId:{},dataCenterId:{}", workId, dataCenterId);
-            workIdLock.unlock();
-            dataCenterIdLock.unlock();
-            lockNotice(true);
-        }).start();
-        lockNotice(false);
+        if (null == workId || null == dataCenterId) {
+            new Thread(() -> {
+                notice = true;
+                RLock workIdLock = null;
+                RLock dataCenterIdLock = null;
+                if (null == workId) {
+                    workIdLock = getLock(WORK_ID_LOCK_NAME, id -> workId = id);
+                }
+                if (null == dataCenterId) {
+                    dataCenterIdLock = getLock(DATA_CENTER_ID_LOCK_NAME, id -> dataCenterId = id);
+                }
+                LogUtil.info(SnowflakeIdRunner.class, "Snowflake 获取id workId:{},dataCenterId:{}", workId, dataCenterId);
+                lockNotice(true);
+                LogUtil.info(SnowflakeIdRunner.class, "Snowflake 释放id workId:{},dataCenterId:{}", workId, dataCenterId);
+                if (null != workIdLock) {
+                    workIdLock.unlock();
+                }
+                if (null != dataCenterIdLock) {
+                    dataCenterIdLock.unlock();
+                }
+                lockNotice(true);
+            }).start();
+            lockNotice(false);
+        }
         SnowflakeIdUtil.init(workId, dataCenterId);
         LogUtil.info(this, "Snowflake 初始化完成 workId:{},dataCenterId:{}", workId, dataCenterId);
     }
@@ -57,7 +80,9 @@ public class SnowflakeIdRunner implements CommandLineRunner {
     @PreDestroy
     public void preDestroy() {
         // 通知redisson释放分布式锁
-        lockNotice(true);
+        if (notice) {
+            lockNotice(true);
+        }
     }
 
     /**

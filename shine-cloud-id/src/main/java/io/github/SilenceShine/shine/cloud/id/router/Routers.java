@@ -9,8 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerResponse;
 
-import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
-import static org.springframework.web.reactive.function.server.RequestPredicates.path;
+import static org.springframework.web.reactive.function.server.RequestPredicates.*;
 import static org.springframework.web.reactive.function.server.RouterFunctions.nest;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
@@ -34,7 +33,10 @@ public class Routers {
     @Bean
     public RouterFunction<ServerResponse> billNumber(BillNumberHandler handler) {
         return nest(path("/billNumber"),
-                route(GET("/single"), handler::single)
+                route(POST("/save"), handler::save)
+                        .andRoute(POST("update"), handler::update)
+                        .andRoute(POST("updateStatus"), handler::updateStatus)
+                        .andRoute(GET("single"), handler::single)
                         .andRoute(GET("batch"), handler::batch)
         );
     }
