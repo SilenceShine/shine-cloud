@@ -36,8 +36,7 @@ public class Routers {
                 route(POST("/save"), handler::save)
                         .andRoute(POST("update"), handler::update)
                         .andRoute(POST("updateStatus"), handler::updateStatus)
-                        .andRoute(GET("single"), handler::single)
-                        .andRoute(GET("batch"), handler::batch)
+                        .andRoute(GET("getByCode"), handler::getByCode)
         );
     }
 

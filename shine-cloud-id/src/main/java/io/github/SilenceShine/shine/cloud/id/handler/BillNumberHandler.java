@@ -17,17 +17,19 @@ import io.github.SilenceShine.shine.util.function.Condition;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonReactiveClient;
-import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuples;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.function.Function;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.LongStream;
 
 import static io.github.SilenceShine.shine.cloud.id.exception.IdException.*;
 
@@ -76,17 +78,20 @@ public class BillNumberHandler {
                 .flatMap(ReactorFunctionR::single);
     }
 
-    public Mono<ServerResponse> single(ServerRequest request) {
-        final Mono<DataBuffer> emptyBufferMono = null;
-        return Mono.justOrEmpty(request.queryParams().getFirst("code"))
-                .switchIfEmpty(ReactorExceptionUtil.monoBiz(BILL_NUMBER_CODE_NOT_NULL))
-                .map(code -> BillNumber.builder().code(code).build())
-                .flatMap(domain -> repository.findOne(Example.of(domain)))
-                .switchIfEmpty(ReactorExceptionUtil.monoBiz(BILL_NUMBER_CODE_NOT_EXIST))
-                .flatMap(billNumber -> generateBillNumber(billNumber, 1))
+    public Mono<ServerResponse> getByCode(ServerRequest request) {
+        return Mono.justOrEmpty(request.queryParams())
+                .flatMap(map -> getBillNumberByCode(map.getFirst("code"))
+                        .map(billNumber -> Tuples.of(billNumber,
+                                Optional.ofNullable(map.getFirst("size"))
+                                        .map(Integer::parseInt)
+                                        .orElse(1))))
+                .flatMap(tuple2 -> generateBillNumber(tuple2.getT1(), tuple2.getT2()))
                 .flatMap(ReactorFunctionR::single);
     }
 
+    /**
+     * 检查单据号是否存在
+     */
     private Mono<Boolean> checkCodeExist(String code) {
         return repository.exists(Example.of(BillNumber.builder().code(code).build()))
                 .flatMap(exists -> exists
@@ -95,44 +100,43 @@ public class BillNumberHandler {
                 );
     }
 
-    public Mono<ServerResponse> batch(ServerRequest request) {
-        return ReactorFunctionR.single();
+    /**
+     * 获取单据号
+     */
+    private Mono<BillNumber> getBillNumberByCode(String code) {
+        if (null == code) return ReactorExceptionUtil.monoBiz(BILL_NUMBER_CODE_NOT_NULL);
+        return repository.<BillNumber>findOne(Example.of(BillNumber.builder().code(code).build()))
+                .switchIfEmpty(ReactorExceptionUtil.monoBiz(BILL_NUMBER_CODE_NOT_EXIST));
     }
 
     /**
      * 根据code生成单据号 redis实现自增
      */
-    private Mono<?> generateBillNumber(BillNumber billNumber, Integer size) {
-        if (size == 1) {
-            return ReactiveRedisUtil.increment(RedisConstant.BILL_NUMBER + billNumber.getCode())
-                    .map(id -> {
-                        return billNumber.getPrefix() + id;
-                    });
-        } else {
-            var rLockReactive = redissonReactiveClient.getLock("billNumber:");
-            return rLockReactive.lock()
-                    .delayUntil(unused -> rLockReactive.unlock())
-                    .flatMap(unused -> ReactiveRedisUtil.increment("billNumber:" + billNumber.getCode(), size)
-                            .flatMap(id -> Flux.range(Math.toIntExact(id - size), Math.toIntExact(id))
-                                    .map(new Function<Integer, Object>() {
-                                        @Override
-                                        public Object apply(Integer integer) {
-                                            return integer;
-                                        }
-                                    })
-                                    .collectList())
-                    );
-        }
+    private Mono<List<String>> generateBillNumber(BillNumber billNumber, Integer size) {
+        return ReactiveRedisUtil.increment(RedisConstant.BILL_NUMBER + billNumber.getCode(), size)
+                .map(idMax -> LongStream.range(idMax - size, idMax).boxed())
+                .flatMapMany(Flux::fromStream)
+                .map(id -> buildBillNumber(billNumber, id))
+                .collectList();
     }
 
+    /**
+     * 构建每一个单据号
+     */
     private String buildBillNumber(BillNumber billNumber, Long id) {
         var prefix = billNumber.getPrefix();
-
         var date = Condition.convert(billNumber.getFormat(), StrUtil::isNotBlank, format ->
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern(format))
-        );
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern(format)));
+        return prefix + date + formatLong(id, billNumber.getLength());
+    }
 
-        return prefix + date + id;
+    /**
+     * 单据号补位
+     */
+    public static String formatLong(long number, int length) {
+        String str = Long.toString(number);
+        int i = Math.max(0, length) - str.length();
+        return i > 0 ? "0".repeat(i) + str : str;
     }
 
 }

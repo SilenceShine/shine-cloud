@@ -26,7 +26,7 @@ Content-Type: application/json
 }
 
 ### 获取单据号id
-GET http://{{url}}/billNumber/single?code=ID
+GET http://{{url}}/billNumber/getByCode?code=B&size=2
 
 > {%
     client.log(response.body);
