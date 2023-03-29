@@ -25,8 +25,7 @@ public class Routers {
     @Bean
     public RouterFunction<ServerResponse> uid(SnowflakeIdHandler handler) {
         return nest(path("/snowflakeId"),
-                route(GET("/single"), handler::single)
-                        .andRoute(GET("batch"), handler::batch)
+                route(GET("/get"), handler::get)
         );
     }
 

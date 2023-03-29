@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -9,7 +9,7 @@
     <artifactId>shine-cloud</artifactId>
     <groupId>io.github.SilenceShine</groupId>
     <version>${revision}</version>
-    <name>shine-framework</name>
+    <name>shine-cloud</name>
     <description>Shine Cloud 框架</description>
     <url>https://github.com/SilenceShine/shine-cloud.git</url>
 
@@ -26,6 +26,7 @@
         <maven-deploy-plugin.version>3.1.0</maven-deploy-plugin.version>
         <spring-aot-maven-plugin.version>0.12.1</spring-aot-maven-plugin.version>
         <native-maven-plugin.version>0.9.18</native-maven-plugin.version>
+        <spring-boot-maven-plugin.version>3.0.4</spring-boot-maven-plugin.version>
         <dockerfile-maven-plugin.version>1.4.13</dockerfile-maven-plugin.version>
 
         <shine-framework.version>0.3.2-SNAPSHOT</shine-framework.version>
@@ -74,19 +75,6 @@
             <version>${lombok.version}</version>
         </dependency>
     </dependencies>
-
-    <profiles>
-        <profile>
-            <id>github</id>
-            <repositories>
-                <repository>
-                    <id>io.github.SilenceShine</id>
-                    <name>SilenceShine shine-framework Maven Packages</name>
-                    <url>https://maven.pkg.github.com/SilenceShine/shine-framework</url>
-                </repository>
-            </repositories>
-        </profile>
-    </profiles>
 
     <build>
         <resources>
@@ -149,6 +137,20 @@
                         </execution>
                     </executions>
                 </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot-maven-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>default</id>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -166,5 +168,52 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>github</id>
+            <repositories>
+                <repository>
+                    <id>io.github.SilenceShine</id>
+                    <name>SilenceShine shine-framework Maven Packages</name>
+                    <url>https://maven.pkg.github.com/SilenceShine/shine-framework</url>
+                </repository>
+            </repositories>
+        </profile>
+        <profile>
+            <id>dockerfile</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.spotify</groupId>
+                        <artifactId>dockerfile-maven-plugin</artifactId>
+                        <version>${dockerfile-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>default</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <useMavenSettingsForAuth>true</useMavenSettingsForAuth>
+                            <repository>${docker.repository}${docker.namespace}/${project.artifactId}</repository>
+                            <tag>${project.version}</tag>
+                            <dockerfile>Dockerfile</dockerfile>
+                            <buildArgs>
+                                <jar>target/${project.build.finalName}.jar</jar>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

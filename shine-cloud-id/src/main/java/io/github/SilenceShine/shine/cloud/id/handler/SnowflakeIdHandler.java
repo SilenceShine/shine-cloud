@@ -19,16 +19,11 @@ import reactor.core.publisher.Mono;
 public class SnowflakeIdHandler {
 
     private static final String PARAM_SIZE = "size";
-    private static final int DEFAULT_SIZE = 1000;
 
-    public Mono<ServerResponse> single(ServerRequest __) {
-        return ReactorFunctionR.single(SnowflakeIdUtil.getSnowflakeId());
-    }
-
-    public Mono<ServerResponse> batch(ServerRequest request) {
+    public Mono<ServerResponse> get(ServerRequest request) {
         return Mono.justOrEmpty(request.queryParams().getFirst(PARAM_SIZE))
                 .map(Integer::parseInt)
-                .defaultIfEmpty(DEFAULT_SIZE)
+                .defaultIfEmpty(1)
                 .map(SnowflakeIdUtil::getSnowflakeIds)
                 .flatMap(ReactorFunctionR::single);
     }

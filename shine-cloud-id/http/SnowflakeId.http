@@ -1,0 +1,2 @@
+### 获取雪花算法id
+GET http://{{url}}/snowflakeId/get

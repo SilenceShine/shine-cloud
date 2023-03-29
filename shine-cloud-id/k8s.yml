@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s.kuboard.cn/layer: svc
+    k8s.kuboard.cn/name: svc-shine-cloud-id
+  name: svc-shine-cloud-id
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s.kuboard.cn/layer: svc
+      k8s.kuboard.cn/name: svc-shine-cloud-id
+  template:
+    metadata:
+      labels:
+        k8s.kuboard.cn/layer: svc
+        k8s.kuboard.cn/name: svc-shine-cloud-id
+    spec:
+      containers:
+        - name: shine-cloud-id
+          image: 'registry.cn-chengdu.aliyuncs.com/xuansy-github/shine-cloud-id:0.0.1-SNAPSHOT'
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 10200
+              hostPort: 10200
+              name: id-10200
+              protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    k8s.kuboard.cn/workload: svc-shine-cloud-id
+  labels:
+    k8s.kuboard.cn/layer: svc
+    k8s.kuboard.cn/name: svc-shine-cloud-id
+  name: svc-shine-cloud-id
+  namespace: default
+spec:
+  type: ClusterIP
+  ports:
+    - name: id-10200
+      port: 10200
+      targetPort: 10200
+      protocol: TCP
+  selector:
+    k8s.kuboard.cn/layer: svc
+    k8s.kuboard.cn/name: svc-shine-cloud-id
+  sessionAffinity: ClientIP
